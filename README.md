@@ -4,7 +4,7 @@
  其实项目已经上线了一年多了，一直没时间来将一些有用的东西摘出来。最近还算是比较闲，就将一些自认为值得拿出来分享的东西摘了出来。
  
 ##与其他公共类比较
-之前在github上star最多的莫过于[RNCachingURLProtocol](https://github.com/rnapier/RNCachingURLProtocol),我也认真的看了他的源码，写的非常不错，不的不说有点过时了。而且有一点没处理的好，如果放入直接的将其使用，他会将所有的http请求都缓存下来，不管你是不是来自UIWebView的请求，所以有很大的必要去改进。
+之前在GitHub上star最多的莫过于[RNCachingURLProtocol](https://github.com/rnapier/RNCachingURLProtocol),我也认真的看了他的源码，写的非常不错，不的不说有点过时了。而且有一点没处理的好，如果放入直接的将其使用，他会将所有的http请求都缓存下来，不管你是不是来自UIWebView的请求，所以有很大的必要去改进。
 
 ##与NSURLCache比较
 相信对使用过UIWebView的同学都会知道，其实UIWebView本身是有缓存的，那就是基于NSURLCache来实现的。之前到网上看到过基于他来对NSURLCache实现离线缓存，我开始也封装了个，但是发现不是特别的好用，显得特别的笨重。后面看了一篇关于介绍[NSURLProtocol](https://www.raywenderlich.com/59982/nsurlprotocol-tutorial)的文章,英文还行的同学可以去看看。
