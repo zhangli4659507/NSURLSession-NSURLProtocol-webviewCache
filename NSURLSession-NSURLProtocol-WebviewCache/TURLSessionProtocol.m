@@ -11,7 +11,7 @@
 #import <CommonCrypto/CommonDigest.h>
 NSString *const KProtocolHttpHeadKey = @"KProtocolHttpHeadKey";
 
-static NSUInteger const KCacheTime = 3600;//缓存的时间  默认设置为30秒 可以任意的更改
+static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为30秒 可以任意的更改
 
 @interface NSURLRequest(MutableCopyWorkaround)
 - (id)mutableCopyWorkaround;
@@ -108,7 +108,6 @@ static NSUInteger const KCacheTime = 3600;//缓存的时间  默认设置为30�
     }
     
     return self;
-    
 }
 
 @end
@@ -181,7 +180,8 @@ static NSUInteger const KCacheTime = 3600;//缓存的时间  默认设置为30�
         
         
     } else {
-        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
+        NSMutableURLRequest *request = [self.request mutableCopyWorkaround];
+        [request setValue:nil forHTTPHeaderField:KProtocolHttpHeadKey];
         self.downloadTask = [self.session dataTaskWithRequest:request];
         [self.downloadTask resume];
 
@@ -193,6 +193,7 @@ static NSUInteger const KCacheTime = 3600;//缓存的时间  默认设置为30�
     self.cacheData = nil;
     self.downloadTask = nil;
     self.response = nil;
+    
   
 }
 
@@ -200,14 +201,15 @@ static NSUInteger const KCacheTime = 3600;//缓存的时间  默认设置为30�
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request completionHandler:(void (^)(NSURLRequest * _Nullable))completionHandler {
 
-    
+    //处理重定向问题
     if (response != nil) {
         NSMutableURLRequest *redirectableRequest = [request mutableCopyWorkaround];
+        [redirectableRequest setValue:@"test" forHTTPHeaderField:KProtocolHttpHeadKey];
         TURLProtocolCacheData *cacheData = [[TURLProtocolCacheData alloc] init];
         cacheData.data = self.cacheData;
         cacheData.response = response;
         cacheData.redirectRequest = redirectableRequest;
-       BOOL state = [NSKeyedArchiver archiveRootObject:cacheData toFile:[self p_filePathWithUrlString:request.URL.absoluteString]];
+        [NSKeyedArchiver archiveRootObject:cacheData toFile:[self p_filePathWithUrlString:request.URL.absoluteString]];
         
         [self.client URLProtocol:self wasRedirectedToRequest:redirectableRequest redirectResponse:response];
         completionHandler(request);
@@ -244,12 +246,9 @@ static NSUInteger const KCacheTime = 3600;//缓存的时间  默认设置为30�
         cacheData.data = [self.cacheData copy];
         cacheData.addDate = [NSDate date];
         cacheData.response = self.response;
-       BOOL state = [NSKeyedArchiver archiveRootObject:cacheData toFile:[self p_filePathWithUrlString:self.request.URL.absoluteString]];
-        
-        NSLog(@"%d",state);
+       [NSKeyedArchiver archiveRootObject:cacheData toFile:[self p_filePathWithUrlString:self.request.URL.absoluteString]];
         [self.client URLProtocolDidFinishLoading:self];
     }
-
 }
 
 @end

@@ -17,7 +17,7 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://www.baidu.com"]];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://www.233.com"]];
     //设置特定的请求头 不然不会进行网络拦截 也不会将请求的内容缓存下来
     [request setValue:@"233" forHTTPHeaderField:KProtocolHttpHeadKey];
     [self.webView loadRequest:request];

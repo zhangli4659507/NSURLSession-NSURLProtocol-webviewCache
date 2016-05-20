@@ -269,10 +269,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Wen Luo (6P2MSBB3R6)";
 				INFOPLIST_FILE = "NSURLSession-NSURLProtocol-WebviewCache/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = "-33.NSURLSession-NSURLProtocol-WebviewCache";
+				PRODUCT_BUNDLE_IDENTIFIER = com.233.test.ppppp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "5eb87a29-826a-4da2-809c-3ed7299dd292";
 			};
 			name = Debug;
 		};
@@ -280,10 +282,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer: Wen Luo (6P2MSBB3R6)";
 				INFOPLIST_FILE = "NSURLSession-NSURLProtocol-WebviewCache/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = "-33.NSURLSession-NSURLProtocol-WebviewCache";
+				PRODUCT_BUNDLE_IDENTIFIER = com.233.test.ppppp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE = "5eb87a29-826a-4da2-809c-3ed7299dd292";
 			};
 			name = Release;
 		};
