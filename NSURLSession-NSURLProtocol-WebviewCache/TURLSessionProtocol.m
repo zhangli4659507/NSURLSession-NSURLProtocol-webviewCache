@@ -11,7 +11,11 @@
 #import <CommonCrypto/CommonDigest.h>
 NSString *const KProtocolHttpHeadKey = @"KProtocolHttpHeadKey";
 
-static NSUInteger const KCacheTime = 30;//缓存的时间  默认设置为30秒 可以任意的更改
+static NSUInteger const KCacheTime = 3600;//缓存的时间  默认设置为30秒 可以任意的更改
+
+@interface NSURLRequest(MutableCopyWorkaround)
+- (id)mutableCopyWorkaround;
+@end
 
 @interface NSString (MD5)
 - (NSString *)md5String;
@@ -21,7 +25,7 @@ static NSUInteger const KCacheTime = 30;//缓存的时间  默认设置为30秒 
 @property (nonatomic, strong) NSDate *addDate;
 @property (nonatomic, strong) NSData *data;
 @property (nonatomic, strong) NSURLResponse *response;
-//@property (nonatomic, strong) NSURLRequest *request;
+@property (nonatomic, strong) NSURLRequest *redirectRequest;
 @end
 
 
@@ -30,6 +34,26 @@ static NSUInteger const KCacheTime = 30;//缓存的时间  默认设置为30秒 
 @property (nonatomic, strong) NSURLSessionDataTask *downloadTask;
 @property (nonatomic, strong) NSURLResponse *response;
 @property (nonatomic, strong) NSMutableData *cacheData;
+@end
+
+@implementation NSURLRequest (MutableCopyWorkaround)
+
+-(id)mutableCopyWorkaround {
+
+    NSMutableURLRequest *mutableURLRequest = [[NSMutableURLRequest alloc] initWithURL:[self URL]
+                                                                          cachePolicy:[self cachePolicy]
+                                                                      timeoutInterval:[self timeoutInterval]];
+    [mutableURLRequest setAllHTTPHeaderFields:[self allHTTPHeaderFields]];
+    if ([self HTTPBodyStream]) {
+        [mutableURLRequest setHTTPBodyStream:[self HTTPBodyStream]];
+    } else {
+        [mutableURLRequest setHTTPBody:[self HTTPBody]];
+    }
+    [mutableURLRequest setHTTPMethod:[self HTTPMethod]];
+    
+    return mutableURLRequest;
+}
+
 @end
 
 @implementation NSString(MD5)
@@ -146,9 +170,15 @@ static NSUInteger const KCacheTime = 30;//缓存的时间  默认设置为30秒 
     
     if ([self p_isUseCahceWithCacheData:cacheData]) {
         //有缓存并且缓存没过期
-        [self.client URLProtocol:self didReceiveResponse:cacheData.response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
-        [self.client URLProtocol:self didLoadData:cacheData.data];
-        [self.client URLProtocolDidFinishLoading:self];
+        
+        if (cacheData.redirectRequest) {
+            [self.client URLProtocol:self wasRedirectedToRequest:cacheData.redirectRequest redirectResponse:cacheData.response];
+        } else {
+            [self.client URLProtocol:self didReceiveResponse:cacheData.response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
+            [self.client URLProtocol:self didLoadData:cacheData.data];
+            [self.client URLProtocolDidFinishLoading:self];
+        }
+        
         
     } else {
         NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:url]];
@@ -167,6 +197,26 @@ static NSUInteger const KCacheTime = 30;//缓存的时间  默认设置为30秒 
 }
 
 #pragma mark - session delegate
+
+- (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request completionHandler:(void (^)(NSURLRequest * _Nullable))completionHandler {
+
+    
+    if (response != nil) {
+        NSMutableURLRequest *redirectableRequest = [request mutableCopyWorkaround];
+        TURLProtocolCacheData *cacheData = [[TURLProtocolCacheData alloc] init];
+        cacheData.data = self.cacheData;
+        cacheData.response = response;
+        cacheData.redirectRequest = redirectableRequest;
+       BOOL state = [NSKeyedArchiver archiveRootObject:cacheData toFile:[self p_filePathWithUrlString:request.URL.absoluteString]];
+        
+        [self.client URLProtocol:self wasRedirectedToRequest:redirectableRequest redirectResponse:response];
+        completionHandler(request);
+        
+    } else {
+    
+        completionHandler(request);
+    }
+}
 
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveResponse:(NSURLResponse *)response completionHandler:(void (^)(NSURLSessionResponseDisposition))completionHandler {
 
