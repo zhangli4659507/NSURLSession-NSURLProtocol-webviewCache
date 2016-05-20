@@ -11,7 +11,7 @@
 #import <CommonCrypto/CommonDigest.h>
 NSString *const KProtocolHttpHeadKey = @"KProtocolHttpHeadKey";
 
-static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为30秒 可以任意的更改
+static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360秒 可以任意的更改
 
 @interface NSURLRequest(MutableCopyWorkaround)
 - (id)mutableCopyWorkaround;
