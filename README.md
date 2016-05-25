@@ -15,6 +15,15 @@
  1.在Appdelegate中的`application:didFinishLaunchingWithOptions:`方法中加上：
  `[NSURLProtocol registerClass:[TURLSessionProtocol class]];`
  
+ `注：在使用NSURLSession做请求，必须这样写才能截获该请求：`
+
+  `  NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];`
+  
+  ` config.protocolClasses = @[[TURLSessionProtocol class]];`
+  
+  对于拦截NSURLSession请求，可以参考这篇博客[objc](http://objccn.io/issue-5-4/)
+  
+ 
  2.在你创建请求时，给请求添加一个请求头：
  `[request setValue:@(YES) forHTTPHeaderField:KProtocolHttpHeadKey];`需要注意key必须是`KProtocolHttpHeadKey`，不然会拦截不到你的请求。
  
