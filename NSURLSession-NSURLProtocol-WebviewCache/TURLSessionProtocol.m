@@ -13,6 +13,9 @@ NSString *const KProtocolHttpHeadKey = @"KProtocolHttpHeadKey";
 
 static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360秒 可以任意的更改
 
+static NSObject *TURLSessionFilterUrlPreObject;
+static NSSet *TURLSessionFilterUrlPre;
+
 @interface NSURLRequest(MutableCopyWorkaround)
 - (id)mutableCopyWorkaround;
 @end
@@ -31,7 +34,7 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
 
 @interface TURLSessionProtocol ()<NSURLSessionDataDelegate>
 @property (nonatomic, strong) NSURLSession *session;
-@property (nonatomic, strong) NSURLSessionDataTask *downloadTask;
+@property (nonatomic, strong) NSURLSessionDownloadTask *downloadTask;
 @property (nonatomic, strong) NSURLResponse *response;
 @property (nonatomic, strong) NSMutableData *cacheData;
 @end
@@ -39,7 +42,7 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
 @implementation NSURLRequest (MutableCopyWorkaround)
 
 -(id)mutableCopyWorkaround {
-
+    
     NSMutableURLRequest *mutableURLRequest = [[NSMutableURLRequest alloc] initWithURL:[self URL]
                                                                           cachePolicy:[self cachePolicy]
                                                                       timeoutInterval:[self timeoutInterval]];
@@ -59,7 +62,7 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
 @implementation NSString(MD5)
 
 - (NSString *)md5String {
-
+    
     NSData *data = [self dataUsingEncoding:NSUTF8StringEncoding];
     uint8_t digest[CC_SHA1_DIGEST_LENGTH];
     
@@ -78,7 +81,7 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
 
 @implementation TURLProtocolCacheData
 - (void)encodeWithCoder:(NSCoder *)aCoder {
-
+    
     unsigned int count;
     Ivar *ivar = class_copyIvarList([self class], &count);
     for (int i = 0 ; i < count ; i++) {
@@ -114,25 +117,55 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
 
 @implementation TURLSessionProtocol
 
++ (void)initialize
+{
+    if (self == [TURLSessionProtocol class])
+    {
+        static dispatch_once_t onceToken;
+        dispatch_once(&onceToken, ^{
+            TURLSessionFilterUrlPreObject = [[NSObject alloc] init];
+        });
+        
+        [self setFilterUrlPres:[NSSet setWithObject:@"http://api.233.com"]];
+    }
+}
 - (NSURLSession *)session {
-
+    
     if (!_session) {
-    _session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:nil];
+        _session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration] delegate:self delegateQueue:nil];
     }
     return _session;
+}
+
+#pragma mark - publicFunc
++ (NSSet *)filterUrlPres {
+    
+    NSSet *set;
+    @synchronized(TURLSessionFilterUrlPreObject)
+    {
+        set = TURLSessionFilterUrlPre;
+    }
+    return set;
+}
+
++ (void)setFilterUrlPres:(NSSet *)filterUrlPre {
+    @synchronized(TURLSessionFilterUrlPreObject)
+    {
+        TURLSessionFilterUrlPre = filterUrlPre;
+    }
 }
 
 #pragma mark - privateFunc
 
 - (NSString *)p_filePathWithUrlString:(NSString *)urlString {
-
+    
     NSString *cachesPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) lastObject];
     NSString *fileName = [urlString md5String];
     return [cachesPath stringByAppendingPathComponent:fileName];
 }
 
 - (BOOL)p_isUseCahceWithCacheData:(TURLProtocolCacheData *)cacheData {
-
+    
     if (cacheData == nil) {
         return NO;
     }
@@ -141,30 +174,44 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
     return timeInterval < KCacheTime;
 }
 
++ (BOOL)p_isFilterWithUrlString:(NSString *)urlString {
+    
+    BOOL state = NO;
+    for (NSString *str in TURLSessionFilterUrlPre) {
+        
+        if ([urlString hasPrefix:str]) {
+            state = YES;
+            break;
+        }
+    }
+    return state;
+}
+
 #pragma mark - override
 
 +(BOOL)canInitWithRequest:(NSURLRequest *)request {
-
-    if ([request valueForHTTPHeaderField:KProtocolHttpHeadKey]) {
+    
+    if ([request valueForHTTPHeaderField:KProtocolHttpHeadKey] == nil && ![self p_isFilterWithUrlString:request.URL.absoluteString]) {
         //拦截请求头中包含KProtocolHttpHeadKey的请求
+        //        NSLog(@"request url:%@",request.URL.absoluteString);
         return YES;
     }
     return NO;
 }
 
 + (NSURLRequest *)canonicalRequestForRequest:(NSURLRequest *)request {
-
+    
     return request;
 }
 
 + (BOOL)requestIsCacheEquivalent:(NSURLRequest *)a toRequest:(NSURLRequest *)b {
-
+    
     return [super requestIsCacheEquivalent:a toRequest:b];
 }
 
 - (void)startLoading {
     
-     NSString *url = self.request.URL.absoluteString;//请求的链接
+    NSString *url = self.request.URL.absoluteString;//请求的链接
     TURLProtocolCacheData *cacheData = [NSKeyedUnarchiver unarchiveObjectWithFile:[self p_filePathWithUrlString:url]];
     
     if ([self p_isUseCahceWithCacheData:cacheData]) {
@@ -180,11 +227,12 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
         
         
     } else {
-        NSMutableURLRequest *request = [self.request mutableCopyWorkaround];
-        [request setValue:nil forHTTPHeaderField:KProtocolHttpHeadKey];
-        self.downloadTask = [self.session dataTaskWithRequest:request];
+//        NSMutableURLRequest *request = [self.request mutableCopyWorkaround];
+        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:self.request.URL.absoluteString]];
+        [request setValue:@"test" forHTTPHeaderField:KProtocolHttpHeadKey];
+        self.downloadTask = [self.session downloadTaskWithRequest:request];
         [self.downloadTask resume];
-
+        
     }
 }
 
@@ -194,17 +242,16 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
     self.downloadTask = nil;
     self.response = nil;
     
-  
+    
 }
 
 #pragma mark - session delegate
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task willPerformHTTPRedirection:(NSHTTPURLResponse *)response newRequest:(NSURLRequest *)request completionHandler:(void (^)(NSURLRequest * _Nullable))completionHandler {
-
+    
     //处理重定向问题
     if (response != nil) {
         NSMutableURLRequest *redirectableRequest = [request mutableCopyWorkaround];
-        [redirectableRequest setValue:@"test" forHTTPHeaderField:KProtocolHttpHeadKey];
         TURLProtocolCacheData *cacheData = [[TURLProtocolCacheData alloc] init];
         cacheData.data = self.cacheData;
         cacheData.response = response;
@@ -215,13 +262,13 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
         completionHandler(request);
         
     } else {
-    
+        
         completionHandler(request);
     }
 }
 
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveResponse:(NSURLResponse *)response completionHandler:(void (^)(NSURLSessionResponseDisposition))completionHandler {
-
+    
     [self.client URLProtocol:self didReceiveResponse:response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
     // 允许处理服务器的响应，才会继续接收服务器返回的数据
     completionHandler(NSURLSessionResponseAllow);
@@ -230,15 +277,16 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
 }
 
 -  (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data {
-//下载过程中
+    //下载过程中
     [self.client URLProtocol:self didLoadData:data];
     [self.cacheData appendData:data];
     
 }
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
-//    下载完成之后的处理
+    //    下载完成之后的处理
     if (error) {
+        NSLog(@"error url = %@",task.response.URL);
         [self.client URLProtocol:self didFailWithError:error];
     } else {
         //将数据的缓存归档存入到本地文件中
@@ -246,7 +294,7 @@ static NSUInteger const KCacheTime = 360;//缓存的时间  默认设置为360�
         cacheData.data = [self.cacheData copy];
         cacheData.addDate = [NSDate date];
         cacheData.response = self.response;
-       [NSKeyedArchiver archiveRootObject:cacheData toFile:[self p_filePathWithUrlString:self.request.URL.absoluteString]];
+        [NSKeyedArchiver archiveRootObject:cacheData toFile:[self p_filePathWithUrlString:self.request.URL.absoluteString]];
         [self.client URLProtocolDidFinishLoading:self];
     }
 }

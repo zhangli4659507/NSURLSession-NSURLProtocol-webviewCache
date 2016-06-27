@@ -11,5 +11,7 @@
 extern NSString *const KProtocolHttpHeadKey;
 
 @interface TURLSessionProtocol : NSURLProtocol
-
+//添加需要过滤的请求前缀
++ (NSSet *)filterUrlPres;
++ (void)setFilterUrlPres:(NSSet *)filterUrlPre;
 @end
