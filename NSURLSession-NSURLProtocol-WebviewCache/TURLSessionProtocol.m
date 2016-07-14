@@ -34,7 +34,7 @@ static NSSet *TURLSessionFilterUrlPre;
 
 @interface TURLSessionProtocol ()<NSURLSessionDataDelegate>
 @property (nonatomic, strong) NSURLSession *session;
-@property (nonatomic, strong) NSURLSessionDownloadTask *downloadTask;
+@property (nonatomic, strong) NSURLSessionDataTask *downloadTask;
 @property (nonatomic, strong) NSURLResponse *response;
 @property (nonatomic, strong) NSMutableData *cacheData;
 @end
@@ -219,7 +219,7 @@ static NSSet *TURLSessionFilterUrlPre;
         
         if (cacheData.redirectRequest) {
             [self.client URLProtocol:self wasRedirectedToRequest:cacheData.redirectRequest redirectResponse:cacheData.response];
-        } else {
+        } else  if (cacheData.response){
             [self.client URLProtocol:self didReceiveResponse:cacheData.response cacheStoragePolicy:NSURLCacheStorageNotAllowed];
             [self.client URLProtocol:self didLoadData:cacheData.data];
             [self.client URLProtocolDidFinishLoading:self];
@@ -227,10 +227,11 @@ static NSSet *TURLSessionFilterUrlPre;
         
         
     } else {
-//        NSMutableURLRequest *request = [self.request mutableCopyWorkaround];
-        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:self.request.URL.absoluteString]];
+        NSMutableURLRequest *request = [self.request mutableCopyWorkaround];
+        request.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+//        NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:self.request.URL.absoluteString]];
         [request setValue:@"test" forHTTPHeaderField:KProtocolHttpHeadKey];
-        self.downloadTask = [self.session downloadTaskWithRequest:request];
+        self.downloadTask = [self.session dataTaskWithRequest:request];
         [self.downloadTask resume];
         
     }
@@ -285,11 +286,13 @@ static NSSet *TURLSessionFilterUrlPre;
 
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
     //    下载完成之后的处理
+   
     if (error) {
-        NSLog(@"error url = %@",task.response.URL);
+        NSLog(@"error url = %@",task.currentRequest.URL.absoluteString);
         [self.client URLProtocol:self didFailWithError:error];
     } else {
         //将数据的缓存归档存入到本地文件中
+        NSLog(@"ok url = %@",task.currentRequest.URL.absoluteString);
         TURLProtocolCacheData *cacheData = [[TURLProtocolCacheData alloc] init];
         cacheData.data = [self.cacheData copy];
         cacheData.addDate = [NSDate date];
